@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>為這首歌評分！</title>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            background-color: #121212;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .vote-card {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 80%;
+            max-width: 350px;
+        }
+
+        h2 { color: #00ffcc; margin-bottom: 5px; }
+        p { color: #888; margin-bottom: 30px; }
+
+        input[type=range] {
+            width: 100%;
+            margin: 20px 0;
+            accent-color: #ff007b;
+        }
+
+        .score-display {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #ff007b;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff007b, #ff5e00);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.1s;
+        }
+
+        button:active { transform: scale(0.95); }
+        button:disabled { background: #444; cursor: not-allowed; }
+
+        #msg { margin-top: 15px; font-size: 14px; color: #00ffcc; }
+    </style>
+</head>
+<body>
+
+<div class="vote-card">
+    <p id="current-song-display">正在等待歌曲開始...</p>
+    <h2 id="song-title">尚未開始投票</h2>
+    
+    <div class="score-display" id="val">50</div>
+    <input type="range" id="slider" min="0" max="100" value="50" oninput="updateVal(this.value)">
+    
+    <button id="vote-btn" onclick="submitVote()">送出評分</button>
+    <div id="msg"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    const slider = document.getElementById('slider');
+    const valDisplay = document.getElementById('val');
+    const btn = document.getElementById('vote-btn');
+    const msg = document.getElementById('msg');
+
+    function updateVal(v) {
+        valDisplay.innerText = v;
+    }
+
+    // 模擬防重複投票：本地鎖定
+    if (localStorage.getItem('voted_session')) {
+        // btn.disabled = true;
+        // msg.innerText = "您已經參與過本輪投票囉！";
+    }
+
+    async function submitVote() {
+        const score = slider.value;
+        btn.disabled = true;
+        msg.innerText = "傳送中...";
+
+        // 這裡未來會發送到你的 .NET API
+        // const response = await fetch('http://localhost:5000/api/vote', {
+        //     method: 'POST',
+        //     body: JSON.stringify({ score: score, voterId: getVoterId() })
+        // });
+
+        // 模擬成功
+        setTimeout(() => {
+            msg.innerText = "投票成功！感謝參與。";
+            localStorage.setItem('voted_session', 'true');
+        }, 800);
+    }
+
+    // 簡單的 VoterID 生成 (存於 LocalStorage)
+    function getVoterId() {
+        let id = localStorage.getItem('voter_id');
+        if (!id) {
+            id = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('voter_id', id);
+        }
+        return id;
+    }
+</script>
+
+</body>
+</html>
