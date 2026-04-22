@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Song Rater Overlay</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700&family=Oswald:wght@700&display=swap" rel="stylesheet">
+    <style>
+        /* OBS 必備：透明背景與隱藏卷軸 */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent; 
+            overflow: hidden;
+            font-family: 'Noto Sans TC', sans-serif;
+            color: white;
+        }
+
+        /* 主容器：包含背景色與進場動畫 */
+        #overlay-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 380px;
+            background: rgba(0, 0, 0, 0.7);
+            border-left: 8px solid #ff007b; /* 預設桃紅邊框 */
+            padding: 15px 20px;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            
+            /* 動畫屬性：預設在畫面外 */
+            transform: translateX(-150%);
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s;
+        }
+
+        /* 顯示時的 Class */
+        #overlay-container.show {
+            transform: translateX(0);
+        }
+
+        /* 歌曲資訊區塊 */
+        .song-info {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 8px;
+        }
+
+        #song-title {
+            font-size: 26px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+
+        #artist-name {
+            font-size: 16px;
+            color: #b3b3b3;
+            margin-top: -2px;
+        }
+
+        /* 分數區塊 */
+        .score-section {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        .score-wrapper {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        #score-value {
+            font-family: 'Oswald', sans-serif;
+            font-size: 65px;
+            line-height: 1;
+            margin: 0;
+            color: #00ffcc; /* 預設湖水藍 */
+            text-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        .score-label {
+            font-size: 18px;
+            color: #ff007b;
+            font-weight: 700;
+        }
+
+        #grade-badge {
+            font-family: 'Oswald', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 4px;
+            background: rgba(255, 0, 123, 0.2);
+            color: #ff007b;
+            border: 1px solid #ff007b;
+            transition: all 0.3s;
+        }
+
+        /* --- 動態特效 (Pop) --- */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); color: #ffffff; text-shadow: 0 0 20px #fff; }
+            100% { transform: scale(1); }
+        }
+
+        .animate-pop {
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* --- 等級顏色定義 (SSS, S, A, B) --- */
+        /* SSS 級 (滿分) */
+        .grade-sss #score-value { color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        .grade-sss #grade-badge { color: #ffd700; border-color: #ffd700; background: rgba(255, 215, 0, 0.2); box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        .grade-sss { border-left-color: #ffd700 !important; }
+
+        /* S 級 (90+) */
+        .grade-s #score-value { color: #ff007b; text-shadow: 0 0 15px rgba(255, 0, 123, 0.6); }
+        .grade-s #grade-badge { color: #ff007b; border-color: #ff007b; background: rgba(255, 0, 123, 0.2); }
+        .grade-s { border-left-color: #ff007b !important; }
+
+        /* A 級 (80+) */
+        .grade-a #score-value { color: #00ffcc; text-shadow: 0 0 15px rgba(0, 255, 204, 0.6); }
+        .grade-a #grade-badge { color: #00ffcc; border-color: #00ffcc; background: rgba(0, 255, 204, 0.2); }
+        .grade-a { border-left-color: #00ffcc !important; }
+
+        /* B 級 (<80) */
+        .grade-b #score-value { color: #a0a0a0; text-shadow: none; }
+        .grade-b #grade-badge { color: #a0a0a0; border-color: #a0a0a0; background: rgba(160, 160, 160, 0.2); }
+        .grade-b { border-left-color: #a0a0a0 !important; }
+
+    </style>
+</head>
+<body>
+
+    <div id="overlay-container">
+        <div class="song-info">
+            <div id="song-title">等待接收資料...</div>
+            <div id="artist-name">--</div>
+        </div>
+        <div class="score-section">
+            <div class="score-wrapper">
+                <div id="score-value">0</div>
+                <div class="score-label">PTS</div>
+            </div>
+            <div id="grade-badge">-</div>
+        </div>
+    </div>
+
+    <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;">
+        <button onclick="toggleOverlay()">顯示/隱藏 面板</button>
+        <button onclick="simulateUpdate(100)">測試 100分 (SSS)</button>
+        <button onclick="simulateUpdate(92)">測試 92分 (S)</button>
+        <button onclick="simulateUpdate(85)">測試 85分 (A)</button>
+        <button onclick="simulateUpdate(70)">測試 70分 (B)</button>
+    </div>
+
+    <script>
+        const container = document.getElementById('overlay-container');
+        const songTitleEl = document.getElementById('song-title');
+        const artistNameEl = document.getElementById('artist-name');
+        const scoreValueEl = document.getElementById('score-value');
+        const gradeBadgeEl = document.getElementById('grade-badge');
+
+        // 顯示/隱藏 面板
+        function toggleOverlay() {
+            container.classList.toggle('show');
+        }
+
+        // 更新資料的核心函數 (之後給 SignalR 呼叫的)
+        function updateOverlayData(title, artist, score) {
+            // 1. 更新文字
+            songTitleEl.innerText = title;
+            artistNameEl.innerText = artist;
+            scoreValueEl.innerText = score;
+
+            // 2. 觸發數字跳動動畫 (重置動畫狀態)
+            scoreValueEl.classList.remove('animate-pop');
+            void scoreValueEl.offsetWidth; // 觸發瀏覽器 Reflow (魔法咒語)
+            scoreValueEl.classList.add('animate-pop');
+
+            // 3. 計算並更新等級顏色
+            container.className = 'show'; // 保留 show 狀態，清除舊的 grade class
+            if (score === 100) {
+                container.classList.add('grade-sss');
+                gradeBadgeEl.innerText = 'SSS';
+            } else if (score >= 90) {
+                container.classList.add('grade-s');
+                gradeBadgeEl.innerText = 'S';
+            } else if (score >= 80) {
+                container.classList.add('grade-a');
+                gradeBadgeEl.innerText = 'A';
+            } else {
+                container.classList.add('grade-b');
+                gradeBadgeEl.innerText = 'B';
+            }
+        }
+
+        // 模擬測試用的 Function
+        function simulateUpdate(score) {
+            const mockSongs = ["春日影", "アイドル", "Bling-Bang-Bang-Born", "晚安大小姐"];
+            const mockArtists = ["MyGO!!!!!", "YOASOBI", "Creepy Nuts", "ASMRZ"];
+            const randomTitle = mockSongs[Math.floor(Math.random() * mockSongs.length)];
+            const randomArtist = mockArtists[Math.floor(Math.random() * mockArtists.length)];
+            
+            // 確保面板是顯示狀態
+            if (!container.classList.contains('show')) {
+                toggleOverlay();
+            }
+            
+            updateOverlayData(randomTitle, randomArtist, score);
+        }
+
+        // --- 未來串接 SignalR 的預留位 ---
+        /*
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://localhost:5000/scoreHub")
+            .build();
+
+        connection.on("ReceiveUpdate", (title, artist, score) => {
+            updateOverlayData(title, artist, score);
+        });
+
+        connection.start();
+        */
+    </script>
+</body>
+</html>
